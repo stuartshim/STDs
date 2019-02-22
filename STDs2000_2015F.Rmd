@@ -1,0 +1,348 @@
+---
+title: "Where Not to Get Lucky"
+author: "Stuart Shim"
+date: "February 20, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This project will examine which states have the highest rates of sexually transmitted diseases in the United States from 2000-2015. Specifically, this may help visitors, travelers, and tourists make future travel and leisure plans. This project hopes to address, are there particular US states or regions to avoid in order reduce infection by sexually transmitted diseases? In addition, using regression and k-NN modeling, this project will try to identify which sexually transmitted disease, are good methods and predictors of total overal rates of STDs in the United States, 2000-2015.
+
+### Data
+The STDs Nationally Ranked By State data set is from the Centers for Disease Control and Prevention, Atlanta, Georgia. It contains a collection of data measured between 2000 and 2015, consisting of 800 observations of 15 variables, from all 50 US states. This data set comes from the [2000 -2015 STDs Nationally Ranked By State](https://www.datazar.com/file/f4ef7ea06-ffce-4b8b-9c6b-866e845ec6a6)
+
+This is the capstone project for the HarvardX certificate program in data science offered by EdX, February 2019.
+```{r}
+
+
+### Data Preparation
+
+#### Install Packages
+
+```
+
+```{r}
+
+install.packages ("tidyverse", repos = "http://cran.us.r-project.org")
+install.packages ("moderndive", repos= "http://cran.us.r-project.org")
+install.packages ("ggplot2", repos= "http://cran.us.r-project.org")
+install.packages("caret", repos = "http://cran.us.r-project.org")
+
+library (tidyverse)
+library (moderndive)
+library (ggplot2)
+library (caret)
+```
+
+### Obtaining and Exploring the data
+
+#### Obtaining the data
+
+```{r}
+# Reading the data
+
+STDs_Nationally_Ranked_By_State <- read.csv("C:/Users/StuartS_2/Desktop/STDs_Nationally_Ranked_By_State.csv")
+```
+#### Exploring the data 
+
+This data set will be observed for its contents, values, and structure. In addition, basic visualizations will be created in order to identify broader national trends. The data set will be converted to a tibble in order to make additional data manipulation possible.
+
+```{r}
+# Looking at the first rows and columns names of the data
+
+head (STDs_Nationally_Ranked_By_State)
+```
+
+```{r}
+# Determining the structure of the data
+
+str(STDs_Nationally_Ranked_By_State)
+```
+```{r}
+# Visualizing the data to identify broad national trends from 2000-2015
+
+ggplot(STDs_Nationally_Ranked_By_State, aes(x = Year, y = Chlamydia_Count)) +
+  geom_line(aes(color=Year)) +
+  labs(x = "Year", y = "Chlamydia_Count", title = "Chlyamydia Cases 2000-2015")
+
+
+ggplot(STDs_Nationally_Ranked_By_State, aes(x=Year, y= Gonorrhea_Count)) +        geom_line(aes(color=Year)) +
+  labs(x= "Year", y = "Gonorrhea_Count", title= "Gonorrhea Cases 2000-2015")
+
+
+ggplot(STDs_Nationally_Ranked_By_State, aes(x = Year, 
+  y =Primary_Secondary_Syphilis_Count)) +
+  geom_line(aes(color=Year)) +
+  labs(x = "Year", y = "Primary_Secondary_Syphilis_Count", title =        "Primary-Secondary Syphilis Cases 2000-2015")
+```
+
+```{r}
+# Creating a new object for data manipulation
+
+std_data<- (STDs_Nationally_Ranked_By_State)
+
+# Reducing the data into chlyamidia, gonorrhea, and syphlis rates by year and state
+
+std_data <- select (std_data,  c(Year, State, Chlamydia_Rate, Gonorrhea_Rate, Primary_Secondary_Syphilis_Rate))
+
+# Transforming data into a tibble
+
+as.tibble (std_data)
+
+# Observing the structure of the tibble
+
+str (std_data)
+
+glimpse (std_data)
+```
+## Analysis
+
+The data set will be modeled using regression and K-NN models to help determine relative model quality, based on lower RMSE scoring.
+
+```{r}
+# Regression modelling 
+# Code to create scatterplot between chlamydia and gonorrhea rates
+
+ggplot(std_data, aes(x=Chlamydia_Rate, y=Gonorrhea_Rate)) +
+geom_point(aes(color=Chlamydia_Rate)) +
+labs(x= "Chlamydia Rate", y="Gonorrhea Rate", title = "Gonorrhea Rate over Chlamydia Rate")
+
+# Add a best fitting line
+
+ggplot(std_data, aes(x=Chlamydia_Rate, y=Gonorrhea_Rate)) +
+geom_point(aes(color=Chlamydia_Rate)) +
+labs(x= "Chlamydia Rate", y="Gonorrhea Rate", title = "Gonorrhea Rate over Chlamydia Rate with Regression Line") +
+geom_smooth (method = "lm", se=FALSE)
+
+# Computing slope and intercept of regression model using formula of form y~x
+
+model_std_data <- lm(Gonorrhea_Rate ~ Chlamydia_Rate, data=std_data)
+
+# Output
+
+model_std_data
+
+# Output regression table using wrapper function
+
+get_regression_table(model_std_data)
+```
+```{r}
+# Multiple regression adding syphilis rate to previous model
+
+# Fit model
+
+model2_std_data <- lm(Gonorrhea_Rate ~ Chlamydia_Rate + Primary_Secondary_Syphilis_Rate, data=std_data)
+
+# Output multiple regression model
+
+model2_std_data
+
+# Get regression table
+get_regression_table(model2_std_data)
+```
+```{r}
+# Sum, calculate the mean of US chlamydia, gonorrhea, and syphilis rates
+
+model3_std_data <- mutate (std_data, Total_Mean=((Chlamydia_Rate + Gonorrhea_Rate + Primary_Secondary_Syphilis_Rate)/3))
+
+# Correlation between Total_Mean and chlamydia, gonorrhea, and syphilis rates
+
+model3_std_data %>%
+  summarize(correlation = cor(Chlamydia_Rate, Total_Mean))
+
+model3_std_data %>%
+  summarize(correlation = cor(Gonorrhea_Rate, Total_Mean))
+
+model3_std_data %>%
+  summarize(correlation = cor(Primary_Secondary_Syphilis_Rate, Total_Mean))
+
+# Arrange data from highest ranked states to lowest
+
+arrange(model3_std_data, desc(Total_Mean))
+
+# Visualize the model
+
+ggplot(model3_std_data, aes(x=Total_Mean, y=State)) + geom_point(aes(color=Total_Mean)) + labs(x= "Total Average", y="States", title = "States with Highest Average Rate of Sexually Transmitted Diseases 2000-2015")
+
+summary(model3_std_data)
+
+```
+```{r}
+# Reduce data to states with the very highest rates of sexually transmitted diseases, eliminating rates for chlymidia, gonorrhea, and syphilis
+
+highest_states <- select (model3_std_data, "State", "Total_Mean", "Year")
+
+# Correlation between Total_Mean and year
+
+highest_states %>%
+  summarize(correlation = cor(Year, Total_Mean))
+
+# Arrange highest states of STDs
+
+arrange (highest_states, desc(Total_Mean))
+
+# Summarize new data set
+
+summary (highest_states)
+
+```
+```{r}
+
+# Plot US STDs 2000-2015 with regression line
+ggplot(highest_states, aes(x=Total_Mean, y=Year)) +
+geom_point(aes(color=Total_Mean)) +
+labs(x= "Total Mean", y="Year", title = "US Total Rate of STDs with Regression 2000-2015") +
+geom_smooth (method = "lm", se=FALSE)
+```
+
+```{r}
+# Plot states with highest rates of STDs 2000-2015 with regression line
+ggplot(highest_states, aes(x=Total_Mean, y=State)) +
+geom_point(aes(color=Total_Mean)) +
+labs(x= "Total Mean", y="State", title = "Highest States of STDs with Regression 2000-2015") +
+geom_smooth (method = "lm", se=FALSE)
+
+# Computing slope and intercept of regression model using formula of form y~x
+
+highest_states <- lm(Total_Mean ~ State, highest_states)
+
+
+# Regression table of states with highest rates of STDs 2000-2015
+
+get_regression_table(highest_states)
+
+# Plot 
+
+plot(highest_states)
+```
+```{r}
+# Get all fitted/predicted values/residuals
+
+get_regression_points(highest_states)
+
+# Prepare data to be plotted
+
+model_highest_states <- get_regression_points(highest_states)
+
+# Calculate sum of squared residuals
+
+get_regression_points(highest_states) %>%
+  mutate(sq_residuals = residual^2) %>%
+  summarize(sum_sq_residuals = sum(sq_residuals))
+
+# Calculate mean squared error: use mean() instead of sum()
+
+get_regression_points(highest_states) %>%
+  mutate(sq_residuals = residual^2) %>%
+  summarize(mse = mean (sq_residuals))
+
+# Calculate root mean squared error
+
+get_regression_points(highest_states) %>%
+  mutate(sq_residuals = residual^2) %>%
+  summarize(mse = mean (sq_residuals))  %>%
+  mutate(rmse = sqrt(mse))
+
+# Plot residuals
+
+ggplot(model_highest_states, aes(x = residual)) +
+  geom_histogram(binwidth=10) +
+  labs(x = "Residuals", title = "Residuals from State ~ Total Mean Model") 
+
+```
+## Cross validation of set prediction framework
+
+
+```{r}
+set.seed(2)
+
+# Randomly shuffle order of rows:
+stds_shuffled <- model3_std_data %>%
+  sample_frac(size = 1, replace = FALSE)
+# Split into train and test:
+train <- stds_shuffled %>%
+  slice(1:400)
+test <- stds_shuffled %>%
+  slice(401:800)
+
+# Training models on training data
+train_stds_shuffled <- lm(Total_Mean ~ State + Chlamydia_Rate,
+data = train)
+
+get_regression_table(train_stds_shuffled)
+
+## Making predictions on test data
+
+# Train model on train:
+
+train_stds_shuffled <- lm(Total_Mean ~ State + Chlamydia_Rate, 
+data = train)
+
+# Get predictions on test:
+
+get_regression_points(train_stds_shuffled, newdata = test)
+
+## Assessing predictions with RMSE
+# Train model:
+train_stds_shuffled <- lm(Total_Mean ~ State + Chlamydia_Rate, data = train)
+
+# Get predictions and compute RMSE:
+get_regression_points(train_stds_shuffled, newdata = test) %>%
+  mutate(sq_residuals = residual^2) %>%
+  summarize(rmse = sqrt(mean(sq_residuals)))
+
+# Comparing RMSE
+# Train model:
+train_stds_shuffled_2 <- lm(Total_Mean ~ State + Gonorrhea_Rate, data = train)
+
+# Get predictions and compute RMSE:
+get_regression_points(train_stds_shuffled_2, newdata = test) %>%
+  mutate(sq_residuals = residual^2) %>%
+  summarize(rmse = sqrt(mean(sq_residuals)))
+
+# Additional models
+# k-NN
+
+set.seed(2)
+
+mod <- train(Total_Mean ~ ., data =stds_shuffled, method = "knn",tuneLength = 12)
+  
+# Observing the structure of the model
+
+str(mod)
+
+head(mod)
+
+# Visulaizing the k-NN model
+
+plot(mod)
+
+
+```
+
+## Results
+
+Intial analysis of the data showed an increase in all sexually transmitted diseases studied between 2000-2015. Of the models utilized in this project, the k-NN model yielded a RMSE value of 3.43 versus 7.55 for standard regression with rate of chlamydia as a predictor.
+
+## Conclusion
+
+Initial data analysis clearly indicated that rates of chlamydia, gonorrhea and syphilis, increased considerably from 2000-2015.
+
+By calculating the total average of the rates of chlamydia, gonorrhea and syphilis, from 2000-2015 and observing the outcome, this project was able to identify that Alaska, Mississippi, Louisiana, North Carolina, and South Carolina had the highest average rates, from the highest rate of 350.80 cases/100,000 in 2009 for Mississippi to 248.03/100,000 cases/100,000 in 2008 for Louisiana. Visitors to these states are advised to be cautious!
+
+These 6 states captured the 50 highest rates of
+chlamydia, gonorrhea and syphilis, from 2000-2015.
+
+Regression modeling and calculating the RMSE (root means squared) outcomes, indicated that chlamydia rates were better at predicting total mean rates versus gonorrhea rates. 
+
+k-NN modeling provided lower RMSE values than standard regression.
+
+
+
